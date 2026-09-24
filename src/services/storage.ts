@@ -110,6 +110,12 @@ export class StorageService {
     return this.db.guilds[guildId];
   }
 
+  public resetGuildSettings(guildId: string): GuildSettings {
+    this.db.guilds[guildId] = this.getDefaultGuildSettings(guildId);
+    this.save();
+    return this.db.guilds[guildId];
+  }
+
   // Warnings
   public addWarning(guildId: string, userId: string, moderatorId: string, reason: string): WarningRecord {
     if (!this.db.warnings[userId]) {
