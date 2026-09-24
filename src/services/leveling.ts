@@ -78,7 +78,7 @@ export class LevelingService {
    * Renders a clean ASCII Rank Card.
    */
   public static renderRankCard(
-    username: string,
+    userId: string,
     data: UserLevelData,
     rank: number
   ): string {
@@ -88,22 +88,20 @@ export class LevelingService {
     const neededXp = Math.max(1, requiredXp - prevLevelXp);
     const percentage = Math.min(100, Math.floor((progressXp / neededXp) * 100));
 
-    const totalBars = 16;
+    const totalBars = 12;
     const filledBars = Math.floor((percentage / 100) * totalBars);
     const emptyBars = totalBars - filledBars;
-    const progressBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
+    const progressBar = '▰'.repeat(filledBars) + '▱'.repeat(emptyBars);
 
     return [
-      '```text',
-      `┌──────────────────────────────────────────────┐`,
-      `│ 👤 User: ${username.padEnd(35)}│`,
-      `│                                              │`,
-      `│ Level: ${data.level.toString().padEnd(6)} Rank: #${rank.toString().padEnd(26)}│`,
-      `│ [${progressBar}] ${percentage}%`.padEnd(47) + `│`,
-      `│                                              │`,
-      `│ XP: ${data.xp.toLocaleString()} / ${requiredXp.toLocaleString()}`.padEnd(47) + `│`,
-      `└──────────────────────────────────────────────┘`,
-      '```',
+      `> ### 🎖️ **LEVEL & RANK STATUS**`,
+      `> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `> 👤 **Member:** [@User](root://user/${userId})`,
+      `> 🏆 **Server Rank:** \`#${rank}\``,
+      `> ⭐ **Current Level:** \`Level ${data.level}\``,
+      `> ⚡ **Experience:** \`${data.xp.toLocaleString()} / ${requiredXp.toLocaleString()} XP\``,
+      `> 📊 **Progress:** \`[${progressBar}] ${percentage}%\``,
+      `> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     ].join('\n');
   }
 }
