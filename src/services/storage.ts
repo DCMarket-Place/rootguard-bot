@@ -3,13 +3,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { GuildSettings, WarningRecord, ModCaseRecord, UserLevelData } from '../types';
+import { GuildSettings, WarningRecord, ModCaseRecord, UserLevelData, MuteRecord } from '../types';
 
 interface BotDatabase {
   guilds: Record<string, GuildSettings>;
   warnings: Record<string, WarningRecord[]>; // userId -> WarningRecord[]
   cases: ModCaseRecord[];
   levels: Record<string, Record<string, UserLevelData>>; // guildId -> userId -> UserLevelData
+  mutes: Record<string, MuteRecord>; // guildId:userId -> MuteRecord
 }
 
 export class StorageService {
@@ -73,12 +74,14 @@ export class StorageService {
     try {
       if (fs.existsSync(this.dbPath)) {
         const raw = fs.readFileSync(this.dbPath, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        parsed.mutes = parsed.mutes || {};
+        return parsed;
       }
     } catch (err) {
       console.error('Failed to load database, creating fresh copy:', err);
     }
-    return { guilds: {}, warnings: {}, cases: [], levels: {} };
+    return { guilds: {}, warnings: {}, cases: [], levels: {}, mutes: {} };
   }
 
   public save(): void {
@@ -189,6 +192,59 @@ export class StorageService {
     return Object.values(this.db.levels[guildId])
       .sort((a, b) => b.xp - a.xp)
       .slice(0, limit);
+  }
+
+  // Mute System
+  public muteUser(
+    guildId: string,
+    userId: string,
+    moderatorId: string,
+    reason: string,
+    durationMinutes?: number
+  ): MuteRecord {
+    const key = `${guildId}:${userId}`;
+    const now = Date.now();
+    const expiresAt = durationMinutes ? now + durationMinutes * 60 * 1000 : undefined;
+    const mute: MuteRecord = {
+      userId,
+      guildId,
+      moderatorId,
+      reason,
+      mutedAt: now,
+      expiresAt,
+    };
+    this.db.mutes[key] = mute;
+    this.save();
+    return mute;
+  }
+
+  public unmuteUser(guildId: string, userId: string): boolean {
+    const key = `${guildId}:${userId}`;
+    if (this.db.mutes[key]) {
+      delete this.db.mutes[key];
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  public isMuted(guildId: string, userId: string): boolean {
+    const key = `${guildId}:${userId}`;
+    const mute = this.db.mutes[key];
+    if (!mute) return false;
+
+    // Check expiration
+    if (mute.expiresAt && Date.now() > mute.expiresAt) {
+      delete this.db.mutes[key];
+      this.save();
+      return false;
+    }
+    return true;
+  }
+
+  public getMute(guildId: string, userId: string): MuteRecord | undefined {
+    const key = `${guildId}:${userId}`;
+    return this.db.mutes[key];
   }
 }
 
