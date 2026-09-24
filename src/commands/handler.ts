@@ -170,6 +170,56 @@ export class CommandHandler {
         return true;
       }
 
+      // ==================== MUTE & TIMEOUT COMMANDS ====================
+      case 'mute':
+      case 'timeout': {
+        const target = args[0];
+        if (!target) {
+          await reply('❌ **Usage:** `/mute <userId> [minutes] [reason]`\n*Example:* `/mute @User 10 Spamming in general`');
+          return true;
+        }
+
+        let durationMinutes: number | undefined = undefined;
+        let reasonStartIndex = 1;
+
+        if (args[1] && !isNaN(parseInt(args[1], 10))) {
+          durationMinutes = parseInt(args[1], 10);
+          reasonStartIndex = 2;
+        }
+
+        const reason = args.slice(reasonStartIndex).join(' ') || 'No reason specified';
+        storage.muteUser(guildId, target, evt.userId, reason, durationMinutes);
+        storage.createModCase(guildId, target, evt.userId, 'MUTE', reason, durationMinutes ? `${durationMinutes}m` : undefined);
+        await AuditLogger.logModAction(guildId, 'MUTE', target, evt.userId, `${reason} (Duration: ${durationMinutes ? `${durationMinutes} mins` : 'Permanent'})`);
+
+        const durationText = durationMinutes ? `\`${durationMinutes} Minutes\`` : '`Permanent`';
+        await reply(
+          `> ### 🔇 **MEMBER MUTED**\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n> 👤 **User:** [@User](root://user/${target})\n> ⏱️ **Duration:** ${durationText}\n> 📄 **Reason:** ${reason}\n> 🛡️ **Moderator:** [@Mod](root://user/${evt.userId})\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        );
+        return true;
+      }
+
+      case 'unmute': {
+        const target = args[0];
+        if (!target) {
+          await reply('❌ **Usage:** `/unmute <userId>`');
+          return true;
+        }
+
+        const unmuted = storage.unmuteUser(guildId, target);
+        if (!unmuted) {
+          await reply(`⚠️ User [@User](root://user/${target}) is not currently muted.`);
+          return true;
+        }
+
+        storage.createModCase(guildId, target, evt.userId, 'UNMUTE', 'Manual unmute');
+        await AuditLogger.logModAction(guildId, 'UNMUTE', target, evt.userId, 'Manual unmute');
+        await reply(
+          `> ### 🔊 **MEMBER UNMUTED**\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n> 👤 **User:** [@User](root://user/${target})\n> 🛡️ **Moderator:** [@Mod](root://user/${evt.userId})\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        );
+        return true;
+      }
+
       // ==================== WELCOME & AUTOROLE COMMANDS ====================
       case 'welcome': {
         const sub = args[0]?.toLowerCase();
@@ -255,10 +305,12 @@ export class CommandHandler {
 
         const lines = top10.map((u, i) => {
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**#${i + 1}**`;
-          return `${medal} \`${u.userId}\` — **Level ${u.level}** (${u.xp.toLocaleString()} XP)`;
+          return `> ${medal} [@Member](root://user/${u.userId}) ➔ **Level ${u.level}** (\`${u.xp.toLocaleString()} XP\`)`;
         });
 
-        await reply(`🏆 **Top 10 Community Leaderboard**\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${lines.join('\n')}`);
+        await reply(
+          `> ### 🏆 **COMMUNITY LEADERBOARD — TOP 10**\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${lines.join('\n')}\n> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        );
         return true;
       }
 
@@ -270,6 +322,8 @@ export class CommandHandler {
           `🛡️ **Moderation:**`,
           `  \`/ban <user> [reason]\` — Permanently bans a user`,
           `  \`/kick <user> [reason]\` — Kicks a member`,
+          `  \`/mute <user> [mins] [reason]\` — Mutes a user (chat auto-delete)`,
+          `  \`/unmute <user>\` — Restores user speaking permissions`,
           `  \`/warn <user> [reason]\` — Issues an official infraction`,
           `  \`/warnings <user>\` — View user warnings history`,
           `  \`/clear <amount>\` — Purge bulk messages (1-100)`,
