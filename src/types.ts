@@ -89,3 +89,12 @@ export interface UserLevelData {
   level: number;
   lastXpTime: number;
 }
+
+export interface MuteRecord {
+  userId: string;
+  guildId: string;
+  moderatorId: string;
+  reason: string;
+  mutedAt: number;
+  expiresAt?: number;
+}
