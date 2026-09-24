@@ -1,0 +1,31 @@
+{
+  "id": "ADF0gBMmiwmokTrXynr9vQ",
+  "name": "RootGuard",
+  "version": "1.0.0",
+  "description": "Enterprise Management, Moderation, AutoMod, Welcome, and Leveling Bot for RootApp",
+  "package": {
+    "server": {
+      "launch": "dist/main.js",
+      "deploy": ["dist", "data"],
+      "nodeModules": ["node_modules"]
+    }
+  },
+  "permissions": {
+    "community": {
+      "manageRoles": true,
+      "createBan": true,
+      "manageBans": true,
+      "kick": true,
+      "manageCommunity": true
+    },
+    "channel": {
+      "createMessage": true,
+      "deleteMessageOther": true,
+      "managePinnedMessages": true,
+      "viewMessageHistory": true,
+      "view": true,
+      "voiceMuteOther": true,
+      "voiceKick": true
+    }
+  }
+}
