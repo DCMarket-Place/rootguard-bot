@@ -6,6 +6,7 @@ import {
   ChannelMessageCreatedEvent,
   UserGuid,
   CommunityMemberBanKickRequest,
+  MessageDirectionTake,
 } from '@rootsdk/server-bot';
 import { storage } from '../services/storage';
 import { LevelingService } from '../services/leveling';
@@ -178,7 +179,65 @@ export class CommandHandler {
           return true;
         }
 
-        await reply(`🧹 Clearing **${count}** messages from this channel...`);
+        try {
+          // Delete the user's /clear command message first
+          try {
+            await rootServer.community.channelMessages.delete({
+              id: evt.id,
+              channelId: evt.channelId,
+            });
+          } catch (e) {}
+
+          // Fetch recent messages
+          const listRes = await rootServer.community.channelMessages.list({
+            channelId: evt.channelId,
+            messageDirectionTake: MessageDirectionTake.Older,
+            dateAt: new Date(),
+            limit: count + 5,
+          });
+
+          let deletedCount = 0;
+          const messagesToDelete = (listRes.messages || [])
+            .filter((m) => m.id !== evt.id)
+            .slice(0, count);
+
+          for (const msg of messagesToDelete) {
+            try {
+              await rootServer.community.channelMessages.delete({
+                id: msg.id,
+                channelId: evt.channelId,
+              });
+              deletedCount++;
+            } catch (delErr) {
+              console.warn(`Failed to delete message ${msg.id}:`, delErr);
+            }
+          }
+
+          const confirmMsg = await rootServer.community.channelMessages.create({
+            channelId: evt.channelId,
+            content: `> 🧹 **Successfully deleted ${deletedCount} message${deletedCount === 1 ? '' : 's'}.**`,
+          });
+
+          // Auto-delete confirmation after 4 seconds to leave chat spotless
+          setTimeout(async () => {
+            try {
+              await rootServer.community.channelMessages.delete({
+                id: confirmMsg.id,
+                channelId: evt.channelId,
+              });
+            } catch (e) {}
+          }, 4000);
+
+          await AuditLogger.logModAction(
+            guildId,
+            'MESSAGE_CLEAR',
+            evt.userId,
+            evt.userId,
+            `Purged ${deletedCount} messages in channel [#Channel](root://channel/${evt.channelId})`
+          );
+        } catch (err: any) {
+          await reply(`❌ **Clear Failed:** ${err?.message || 'Could not delete messages.'}`);
+        }
         return true;
       }
 
