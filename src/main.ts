@@ -10,6 +10,8 @@ import {
   CommunityMemberEvent,
   CommunityMemberAttachEvent,
   CommunityMemberDetachEvent,
+  CommunityEvent,
+  CommunityJoinedEvent,
   ChannelGuid,
   CommunityRoleGuid,
   MessageType,
@@ -47,6 +49,12 @@ async function onStarting(state: RootBotStartState): Promise<void> {
   rootServer.community.channelMessages.on(
     ChannelMessageEvent.ChannelMessageDeleted,
     handleMessageDeleted
+  );
+
+  // 5. Bot Added to Server Listener (Dynamic Multi-Server Adaptation)
+  rootServer.community.communities.on(
+    CommunityEvent.CommunityJoined,
+    handleCommunityJoined
   );
 
   console.log('✅ RootGuard successfully initialized and listening to community events!');
@@ -145,20 +153,21 @@ async function handleMemberJoined(evt: CommunityMemberAttachEvent): Promise<void
   // 1. Welcome Message
   if (settings.welcome.enabled && settings.welcome.channelId) {
     const welcomeMsg = settings.welcome.message
-      .replace(/\{user\}/g, `\`${userId}\``)
-      .replace(/\{count\}/g, 'Active Member');
+      .replace(/\{user\}/g, `[@Member](root://user/${userId})`)
+      .replace(/\{id\}/g, `${userId}`)
+      .replace(/\{count\}/g, 'Active Member')
+      .replace(/\{server\}/g, 'Our Community');
 
     try {
       await rootServer.community.channelMessages.create({
         channelId: settings.welcome.channelId as ChannelGuid,
         content: [
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `👋 **Welcome to the Community!**`,
-          ``,
-          welcomeMsg,
-          ``,
-          `📜 Make sure to read the community rules and introduce yourself!`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `> ### 👋 **WELCOME TO THE COMMUNITY!**`,
+          `> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `> ${welcomeMsg}`,
+          `>`,
+          `> 📜 *Please review the community guidelines and have fun!*`,
+          `> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
         ].join('\n'),
       });
     } catch (err) {
@@ -181,6 +190,13 @@ async function handleMemberJoined(evt: CommunityMemberAttachEvent): Promise<void
 
   // 3. Log Join
   await AuditLogger.logMemberJoin(guildId, userId, 1);
+}
+
+async function handleCommunityJoined(evt: CommunityJoinedEvent): Promise<void> {
+  const guildId = evt.communityId;
+  console.log(`🎉 RootGuard was added to a new community: ${guildId}`);
+  // Initialize isolated per-server settings in database
+  storage.getGuildSettings(guildId);
 }
 
 async function handleMemberLeft(evt: CommunityMemberDetachEvent): Promise<void> {
