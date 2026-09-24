@@ -1,7 +1,7 @@
 {
   "id": "ADF0lPx0jQmK9iu-0mcP1A",
   "name": "RootGuard",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Enterprise Management, Moderation, AutoMod, Welcome, and Leveling Bot for RootApp",
   "package": {
     "server": {
