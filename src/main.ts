@@ -61,6 +61,17 @@ async function handleMessageCreated(evt: ChannelMessageCreatedEvent): Promise<vo
   const content = evt.messageContent;
 
   try {
+    // 0. Check if User is Muted
+    if (storage.isMuted(guildId, userId)) {
+      try {
+        await rootServer.community.channelMessages.delete({
+          id: evt.id,
+          channelId: evt.channelId,
+        });
+      } catch (delErr) {}
+      return;
+    }
+
     // A. Check AutoMod Rules
     const autoModResult = AutoModService.checkMessage(guildId, userId, content);
     if (autoModResult.triggered) {
